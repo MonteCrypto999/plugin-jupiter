@@ -759,8 +759,8 @@ export class JupiterService extends Service {
 }
 
 // hack these in here
-async function getCacheExp(runtime, key) {
-  const wrapper = await runtime.getCache<any>(key);
+async function getCacheExp(runtime: any, key: string) {
+  const wrapper = await runtime.getCache(key);
   // if exp is in the past
   if (wrapper.exp < Date.now()) {
     // no data
@@ -768,9 +768,9 @@ async function getCacheExp(runtime, key) {
   }
   return wrapper.data
 }
-async function setCacheExp(runtime, key, val, ttlInSecs) {
+async function setCacheExp(runtime: any, key: string, val: any, ttlInSecs: number) {
   const exp = Date.now() + ttlInSecs * 1_000
-  return runtime.setCache<any>(key, {
+  return runtime.setCache(key, {
     exp,
     data: val,
   });
