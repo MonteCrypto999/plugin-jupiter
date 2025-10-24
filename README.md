@@ -181,6 +181,22 @@ bun test src/__tests__/integration.test.ts
 
 # All tests
 bun test
+
+# Live E2E (example using .env.example), with optional simulation/signing
+# 1) Copy .env.example to .env and set:
+#    REFERRAL_FEE_BPS=20
+#    REFERRAL_MODE=sol_only
+#    REFERRAL_FEE_RECEIVER=<FEE_RECEIVER_PUBKEY>
+#    TEST_INPUT_MINT=So11111111111111111111111111111111111111112
+#    TEST_OUTPUT_MINT=Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk
+#    TEST_INPUT_AMOUNT_ATOMIC=5000000   # 0.005 SOL
+#    TEST_SLIPPAGE_BPS=150
+#    # Optional (simulation/signing)
+#    HELIUS_RPC_URL=https://mainnet.helius-rpc.com/?api-key=...
+#    SIGNER_SECRET_KEY=[1,2,3,...,64]
+#    # SEND_TX=1  # uncomment to broadcast
+# 2) Build and run E2E:
+npm run build && node dist/scripts/e2e-mainnet.js
 ```
 
 ## Development

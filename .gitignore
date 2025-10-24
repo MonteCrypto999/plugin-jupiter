@@ -4,3 +4,4 @@ doc/
 .env
 .env.local
 .env.*.local
+local-e2e/

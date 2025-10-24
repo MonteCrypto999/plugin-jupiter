@@ -1,5 +1,7 @@
+import 'dotenv/config';
 import { JupiterService } from '../service';
 import type { IAgentRuntime } from '@elizaos/core';
+import { Connection, VersionedTransaction, Keypair, clusterApiUrl } from '@solana/web3.js';
 
 // Minimal runtime mock for direct usage
 const runtime: IAgentRuntime = {
@@ -42,6 +44,41 @@ async function main() {
     slippageBps,
   });
   console.log('Swap transaction drafted. keys=', Object.keys(swap));
+
+  // Optional simulation + signing
+  const rpcUrl = process.env.HELIUS_RPC_URL || process.env.SOLANA_RPC_URL || clusterApiUrl('mainnet-beta');
+  const swapTxB64 = (swap as any)?.swapTransaction;
+  if (!swapTxB64) {
+    console.log('No swapTransaction in response; exiting.');
+    return;
+  }
+
+  const connection = new Connection(rpcUrl, 'confirmed');
+  const raw = Buffer.from(swapTxB64, 'base64');
+  const tx = VersionedTransaction.deserialize(raw);
+
+  const sim = await connection.simulateTransaction(tx, { replaceRecentBlockhash: true, sigVerify: false });
+  console.log('Simulation error:', sim.value.err);
+  if (sim.value.logs?.length) console.log('Simulation logs:\n' + sim.value.logs.join('\n'));
+
+  const signerSecret = process.env.SIGNER_SECRET_KEY;
+  if (signerSecret) {
+    try {
+      const parsed = JSON.parse(signerSecret);
+      const signer = Keypair.fromSecretKey(Uint8Array.from(parsed));
+      tx.sign([signer]);
+      if (process.env.SEND_TX === '1') {
+        const sig = await connection.sendTransaction(tx, { skipPreflight: false, preflightCommitment: 'confirmed' });
+        console.log('Sent signature:', sig);
+        const conf = await connection.confirmTransaction(sig, 'confirmed');
+        console.log('Confirmation status:', conf.value);
+      } else {
+        console.log('Signed locally (SEND_TX not set).');
+      }
+    } catch (e) {
+      console.warn('SIGNER_SECRET_KEY present but failed to sign:', (e as any)?.message || e);
+    }
+  }
 }
 
 main().catch((e) => {
