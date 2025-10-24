@@ -354,7 +354,12 @@ export class JupiterService extends Service {
           const selectedMint = selectFeeMint(inputMint, outputMint, referralConfig.mode);
           
           if (selectedMint) {
-            const feeAccount = deriveFeeAccount(userPublicKey, selectedMint);
+            const feeReceiver = process.env.REFERRAL_FEE_RECEIVER;
+            if (!feeReceiver) {
+              logger.warn('REFERRAL_FEE_RECEIVER not set. Swap will proceed without fees.');
+            }
+
+            const feeAccount = feeReceiver ? deriveFeeAccount(feeReceiver, selectedMint) : null;
             
             if (feeAccount) {
               body.feeAccount = feeAccount;

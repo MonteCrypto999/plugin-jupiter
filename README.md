@@ -44,6 +44,10 @@ REFERRAL_FEE_BPS=20
 
 # Fee collection mode: sol_only | smart (default: smart)
 REFERRAL_MODE=smart
+
+# Public key that will receive the fees (fee receiver)
+# An ATA will be derived for the chosen mint
+REFERRAL_FEE_RECEIVER=REPLACE_WITH_FEE_RECEIVER_PUBKEY
 ```
 
 #### Fee Modes
@@ -75,7 +79,7 @@ REFERRAL_MODE=smart
 ### Fee Account
 
 The fee account is automatically derived as an Associated Token Account (ATA):
-- Owner: User executing the swap
+- Owner: Fee receiver (env `REFERRAL_FEE_RECEIVER`)
 - Mint: Selected based on fee mode (SOL or input mint)
 
 ⚠️ **Important**: The fee account must exist before the swap. If it doesn't exist:

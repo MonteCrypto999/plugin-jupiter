@@ -34,6 +34,7 @@ describe('Jupiter Service Integration', () => {
     it('should include platformFeeBps when referral is enabled', async () => {
       process.env.REFERRAL_FEE_BPS = '20';
       process.env.REFERRAL_MODE = 'smart';
+      process.env.REFERRAL_FEE_RECEIVER = '11111111111111111111111111111111';
 
       let capturedUrl = '';
       globalThis.fetch = async (input: any) => {
@@ -58,6 +59,7 @@ describe('Jupiter Service Integration', () => {
 
       delete process.env.REFERRAL_FEE_BPS;
       delete process.env.REFERRAL_MODE;
+      delete process.env.REFERRAL_FEE_RECEIVER;
     });
 
     it('should not include platformFeeBps when referral is disabled', async () => {
@@ -91,6 +93,7 @@ describe('Jupiter Service Integration', () => {
     it('should include feeAccount when referral is enabled', async () => {
       process.env.REFERRAL_FEE_BPS = '20';
       process.env.REFERRAL_MODE = 'smart';
+      process.env.REFERRAL_FEE_RECEIVER = '11111111111111111111111111111111';
 
       let capturedBody: any = null;
       globalThis.fetch = async (input: any, init?: any) => {
@@ -121,6 +124,7 @@ describe('Jupiter Service Integration', () => {
 
       delete process.env.REFERRAL_FEE_BPS;
       delete process.env.REFERRAL_MODE;
+      delete process.env.REFERRAL_FEE_RECEIVER;
     });
 
     it('should not include feeAccount when referral is disabled', async () => {
@@ -160,6 +164,7 @@ describe('Jupiter Service Integration', () => {
     it('should select SOL in sol_only mode when available', async () => {
       process.env.REFERRAL_FEE_BPS = '20';
       process.env.REFERRAL_MODE = 'sol_only';
+      process.env.REFERRAL_FEE_RECEIVER = '11111111111111111111111111111111';
 
       let capturedBody: any = null;
       globalThis.fetch = async (input: any, init?: any) => {
@@ -189,6 +194,7 @@ describe('Jupiter Service Integration', () => {
 
       delete process.env.REFERRAL_FEE_BPS;
       delete process.env.REFERRAL_MODE;
+      delete process.env.REFERRAL_FEE_RECEIVER;
     });
 
     it('should not add feeAccount in sol_only mode when SOL not in pair', async () => {
