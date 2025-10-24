@@ -90,6 +90,61 @@ To create fee accounts, users can:
 - Use any Solana wallet (Phantom, Solflare, etc.)
 - Call `createAssociatedTokenAccount` from `@solana/spl-token`
 
+### Recommended backend endpoint (optional)
+
+For production setups, we recommend a backend endpoint to ensure the fee receiver has the required ATA before swaps:
+
+```ts
+// Minimal Express endpoint to ensure fee ATA exists
+// npm i express @solana/web3.js @solana/spl-token
+import express from 'express';
+import { Connection, Keypair, PublicKey, clusterApiUrl } from '@solana/web3.js';
+import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
+
+const app = express();
+app.use(express.json());
+
+const RPC_URL = process.env.SOLANA_RPC_URL ?? clusterApiUrl('mainnet-beta');
+const FEE_PAYER = Keypair.fromSecretKey(
+  Uint8Array.from(JSON.parse(process.env.FEE_PAYER_SECRET_KEY!))
+);
+
+app.post('/api/fee-ata/ensure', async (req, res) => {
+  try {
+    const { receiver, mint } = req.body;
+    if (!receiver || !mint) return res.status(400).json({ error: 'receiver and mint are required' });
+
+    const connection = new Connection(RPC_URL, 'confirmed');
+    const receiverPk = new PublicKey(receiver);
+    const mintPk = new PublicKey(mint);
+
+    const ata = await getOrCreateAssociatedTokenAccount(
+      connection,
+      FEE_PAYER,
+      mintPk,
+      receiverPk
+    );
+
+    res.json({ feeAccount: ata.address.toBase58() });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message ?? 'unknown error' });
+  }
+});
+
+app.listen(3000, () => console.log('fee-ata endpoint ready on :3000'));
+```
+
+Call it from your ops/scripts prior to swaps, e.g.:
+
+```bash
+curl -X POST http://localhost:3000/api/fee-ata/ensure \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "receiver": "'$REFERRAL_FEE_RECEIVER'",
+    "mint": "So11111111111111111111111111111111111111112"
+  }'
+```
+
 ## API Reference
 
 ### JupiterService
