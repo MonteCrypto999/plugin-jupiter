@@ -65,7 +65,7 @@ function deriveFeeAccount(
   }
 }
 
-async function getQuoteWithRetry(url, retries = 3, delay = 2000) {
+async function getQuoteWithRetry(url: string, retries = 3, delay = 2000) {
   //console.log('quote', url)
   for (let i = 0; i < retries; i++) {
     console.log('jupSrv - url', url)
@@ -81,11 +81,7 @@ async function getQuoteWithRetry(url, retries = 3, delay = 2000) {
       }
 
       const error = await response.text();
-      logger.warn('Quote request failed:', {
-        url,
-        status: response.status,
-        error,
-      });
+      logger.warn(`Quote request failed: ${url} status=${response.status} error=${error}`);
       // alot of 400s
       // a lot of headers but nothing really useful
       //console.log('quoteResponse', response)
@@ -98,9 +94,9 @@ async function getQuoteWithRetry(url, retries = 3, delay = 2000) {
 }
 
 // could include runtime for logging
-function quoteEnqueue(url) {
-  let resolveHandle = false
-  let rejectHandle = false
+function quoteEnqueue(url: string) {
+  let resolveHandle: any = false
+  let rejectHandle: any = false
   const promise = new Promise((resolve, reject) => {
     resolveHandle = resolve
     rejectHandle = reject
@@ -113,7 +109,7 @@ function quoteEnqueue(url) {
   return promise
 }
 
-async function processQuoteQueue(quote) {
+async function processQuoteQueue(quote: any) {
   try {
     const quoteData = await getQuoteWithRetry(quote.url)
     quote.resolveHandle(quoteData)
@@ -144,9 +140,9 @@ async function checkQuoteQueues() {
 // start checking queues
 checkQuoteQueues()
 
-function swapEnqueue(url, payload) {
-  let resolveHandle = false
-  let rejectHandle = false
+function swapEnqueue(url: string, payload: any) {
+  let resolveHandle: any = false
+  let rejectHandle: any = false
   const promise = new Promise((resolve, reject) => {
     resolveHandle = resolve
     rejectHandle = reject
@@ -160,7 +156,7 @@ function swapEnqueue(url, payload) {
   return promise
 }
 
-async function getSwapWithRetry(url, payload, retries = 3, delay = 2000) {
+async function getSwapWithRetry(url: string, payload: any, retries = 3, delay = 2000) {
   //console.log('swap', url)
   for (let i = 0; i < retries; i++) {
     console.log('jupSrv - swap', payload.body)
@@ -176,11 +172,7 @@ async function getSwapWithRetry(url, payload, retries = 3, delay = 2000) {
       }
 
       const error = await response.text();
-      logger.warn('Swap request failed:', {
-        url,
-        status: response.status,
-        error,
-      });
+      logger.warn(`Swap request failed: ${url} status=${response.status} error=${error}`);
       // alot of 400s
       // a lot of headers but nothing really useful
       //console.log('swapResponse', response)
@@ -192,7 +184,7 @@ async function getSwapWithRetry(url, payload, retries = 3, delay = 2000) {
   throw new Error("Rate limit exceeded, try again later.");
 }
 
-async function processSwapQueue(swap) {
+async function processSwapQueue(swap: any) {
   try {
     const swapData = await getSwapWithRetry(swap.url, swap.payload)
     swap.resolveHandle(swapData)
@@ -226,6 +218,7 @@ checkSwapQueues()
 export class JupiterService extends Service {
   private isRunning = false;
   private registry: Record<number, any> = {};
+  private routeCache: Record<string, any> = {};
 
   static serviceType = 'JUPITER_SERVICE';
   capabilityDescription = 'Provides Jupiter DEX integration for token swaps';
@@ -267,7 +260,7 @@ export class JupiterService extends Service {
     slippageBps: number;
   }) {
     try {
-      const intAmount = parseInt(amount)
+      const intAmount = parseInt(amount.toString())
       if (isNaN(intAmount) || intAmount <= 0) {
         console.warn('jupiter::getQuote - Amount in', amount, 'become', intAmount)
         return false
@@ -287,7 +280,7 @@ export class JupiterService extends Service {
         logger.info(`Referral fees enabled: ${referralConfig.feeBps} bps (${referralConfig.feeBps / 100}%)`);
       }
 
-      const quoteData = await quoteEnqueue(url);
+      const quoteData: any = await quoteEnqueue(url);
       // if api-key then use https://api.jup.ag/swap/v1/quote
 
       quoteData.totalLamportsNeeded = this.estimateLamportsNeeded(quoteData)
@@ -299,7 +292,7 @@ export class JupiterService extends Service {
     }
   }
 
-  estimateLamportsNeeded(initialQuote) {
+  estimateLamportsNeeded(initialQuote: any) {
     // Parse numbers safely
     const platformFee = Number(initialQuote.platformFee?.amount || 0);
 
@@ -426,7 +419,7 @@ export class JupiterService extends Service {
   ): Promise<number> {
     try {
       const baseAmount = 10 ** inputDecimals;
-      const quote = await this.getQuote({
+      const quote: any = await this.getQuote({
         inputMint: tokenMint,
         outputMint: quoteMint,
         amount: baseAmount, // Dynamic amount based on token decimals
@@ -666,7 +659,7 @@ export class JupiterService extends Service {
       for (const token1 of commonTokens) {
         if (token1 === startingMint) continue;
 
-        const quote1 = await this.getQuote({
+        const quote1: any = await this.getQuote({
           inputMint: startingMint,
           outputMint: token1,
           amount,
@@ -676,14 +669,14 @@ export class JupiterService extends Service {
         for (const token2 of commonTokens) {
           if (token2 === token1 || token2 === startingMint) continue;
 
-          const quote2 = await this.getQuote({
+          const quote2: any = await this.getQuote({
             inputMint: token1,
             outputMint: token2,
             amount: Number(quote1.outAmount),
             slippageBps: 50,
           });
 
-          const finalQuote = await this.getQuote({
+          const finalQuote: any = await this.getQuote({
             inputMint: token2,
             outputMint: startingMint,
             amount: Number(quote2.outAmount),
