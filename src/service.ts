@@ -278,27 +278,18 @@ export class JupiterService extends Service {
         //console.log('we have a route for', key, this.routeCache[key].routePlan)
       }
 
-      //const quoteData = await this.getQuoteWithRetry(`https://public.jupiterapi.com/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${intAmount}&slippageBps=${slippageBps}&platformFeeBps=200`)
-      // &onlyDirectRoutes=true
-      //   This ensures Jupiter only uses live and fully-initialized pools.
-      // &platformFeeBps=200
-      //const quoteData = await quoteEnqueue(`https://public.jupiterapi.com/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${intAmount}&slippageBps=${slippageBps}`)
-      const quoteData = await quoteEnqueue(`https://lite-api.jup.ag/swap/v1/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${intAmount}&slippageBps=${slippageBps}`)
-      // if api-key then use https://api.jup.ag/swap/v1/quote
-
-      /*
-      if (!quoteResponse.ok) {
-        const error = await quoteResponse.text();
-        logger.warn('Quote request failed:', {
-          status: quoteResponse.status,
-          error,
-        });
-        console.log('quoteResponse', quoteResponse)
-        throw new Error(`Failed to get quote: ${error}`);
+      // Load referral config and add platformFeeBps if enabled
+      const referralConfig = loadReferralConfig();
+      let url = `https://lite-api.jup.ag/swap/v1/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${intAmount}&slippageBps=${slippageBps}`;
+      
+      if (referralConfig.enabled && referralConfig.feeBps > 0) {
+        url += `&platformFeeBps=${referralConfig.feeBps}`;
+        logger.info(`Referral fees enabled: ${referralConfig.feeBps} bps (${referralConfig.feeBps / 100}%)`);
       }
 
-      const quoteData = await quoteResponse.json();
-      */
+      const quoteData = await quoteEnqueue(url);
+      // if api-key then use https://api.jup.ag/swap/v1/quote
+
       quoteData.totalLamportsNeeded = this.estimateLamportsNeeded(quoteData)
       this.routeCache[key] = quoteData
       return quoteData;
@@ -349,60 +340,47 @@ export class JupiterService extends Service {
     slippageBps: number;
   }) {
     try {
-      //console.log('executeSwap slippageBps', slippageBps)
-      const body = {
+      const body: any = {
         quoteResponse: {
           ...quoteResponse,
           slippageBps,
         },
         userPublicKey,
-        //slippageBps,
         wrapAndUnwrapSol: true,
         computeUnitPriceMicroLamports: 5_000_000,
         dynamicComputeUnitLimit: true,
       };
-      //console.log('executeSwap - body', body)
-      //console.log('userPublicKey', userPublicKey, 'body', body)
 
+      // Add feeAccount if referral is enabled
+      const referralConfig = loadReferralConfig();
+      if (referralConfig.enabled && referralConfig.feeBps > 0) {
+        const inputMint = (quoteResponse as any).inputMint;
+        const outputMint = (quoteResponse as any).outputMint;
+        
+        if (inputMint && outputMint) {
+          const selectedMint = selectFeeMint(inputMint, outputMint, referralConfig.mode);
+          
+          if (selectedMint) {
+            const feeAccount = deriveFeeAccount(userPublicKey, selectedMint);
+            
+            if (feeAccount) {
+              body.feeAccount = feeAccount;
+              logger.info(`Fee account added: ${feeAccount} for mint ${selectedMint}`);
+            } else {
+              logger.warn(`Could not derive fee account for mint ${selectedMint}. Swap will proceed without fees.`);
+            }
+          } else {
+            logger.warn(`No suitable mint for fees in ${referralConfig.mode} mode. Swap will proceed without fees.`);
+          }
+        }
+      }
 
-      /*
-      const swapData = await swapEnqueue('https://quote-api.jup.ag/v6/swap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      */
       const swapData = await swapEnqueue('https://lite-api.jup.ag/swap/v1/swap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
 
-
-      /*
-      // what's wrong with this url?
-      //const swapResponse = await fetch('https://public.jupiterapi.com/swap', {
-      const swapResponse = await fetch('https://quote-api.jup.ag/v6/swap', {
-      // Route not found
-      //const swapResponse = await fetch('https://lite-api.jup.ag/v1/swap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      if (!swapResponse.ok) {
-        if (swapResponse.status === 429) {
-          // , response.headers has no rate limit headers
-          console.log('swap 429d')
-          // probably should retry in a bit
-        }
-        const error = await swapResponse.text();
-        throw new Error(`Failed to get swap transaction: ${error}`);
-      }
-      //console.log('swapResponse response', swapResponse)
-
-      return await swapResponse.json();
-      */
       return swapData
     } catch (error) {
       logger.error('Error executing Jupiter swap:', error);
