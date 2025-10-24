@@ -15,7 +15,8 @@
     "build": "tsup --format esm --dts",
     "dev": "tsup --format esm --dts --watch",
     "clean": "rm -rf dist",
-    "lint": "prettier --write ./src"
+    "lint": "prettier --write ./src",
+    "e2e": "node dist/scripts/e2e-mainnet.js"
   },
   "publishConfig": {
     "access": "public"
