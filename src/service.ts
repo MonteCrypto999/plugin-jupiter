@@ -1,9 +1,69 @@
 import { Service, logger, type IAgentRuntime } from '@elizaos/core';
-import { Connection } from '@solana/web3.js';
+import { Connection, PublicKey } from '@solana/web3.js';
+import { getAssociatedTokenAddressSync } from '@solana/spl-token';
+import type { ReferralConfig, FeeMode } from './types';
 
 // doesn't matter how many agents since we're coming from a single IP
 // lets respect their service
 const queues = { quotes: [], swaps: [] }
+
+const WSOL_MINT = 'So11111111111111111111111111111111111111112';
+
+/**
+ * Load referral configuration from environment variables
+ */
+function loadReferralConfig(): ReferralConfig {
+  const feeBps = parseInt(process.env.REFERRAL_FEE_BPS || '0', 10);
+  const mode = (process.env.REFERRAL_MODE || 'smart') as FeeMode;
+  
+  return {
+    enabled: feeBps > 0,
+    feeBps,
+    mode,
+  };
+}
+
+/**
+ * Select the mint to use for fee collection based on mode and swap pair
+ */
+function selectFeeMint(
+  inputMint: string,
+  outputMint: string,
+  mode: FeeMode
+): string | null {
+  if (mode === 'sol_only') {
+    // Prefer SOL/WSOL if available in the pair
+    if (inputMint === WSOL_MINT) return inputMint;
+    if (outputMint === WSOL_MINT) return outputMint;
+    return null; // No SOL in pair, no fee
+  }
+  
+  // Smart mode: prefer SOL if available, otherwise use input mint
+  if (inputMint === WSOL_MINT || outputMint === WSOL_MINT) {
+    return WSOL_MINT;
+  }
+  
+  // Default to input mint for ExactIn compatibility
+  return inputMint;
+}
+
+/**
+ * Derive the associated token account address for a given owner and mint
+ */
+function deriveFeeAccount(
+  ownerPublicKey: string,
+  mint: string
+): string | null {
+  try {
+    const owner = new PublicKey(ownerPublicKey);
+    const mintPubkey = new PublicKey(mint);
+    const ata = getAssociatedTokenAddressSync(mintPubkey, owner);
+    return ata.toBase58();
+  } catch (error) {
+    logger.warn('Failed to derive fee account:', error);
+    return null;
+  }
+}
 
 async function getQuoteWithRetry(url, retries = 3, delay = 2000) {
   //console.log('quote', url)
